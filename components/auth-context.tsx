@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const userData = await authCheck.json();
       setUser(userData);
-      return { success: true, user: userData };
+      return { success: true };
     } catch (err) {
       console.error("Login error:", err);
       return {

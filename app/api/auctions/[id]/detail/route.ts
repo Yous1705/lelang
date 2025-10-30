@@ -3,12 +3,11 @@ import { getDb, initializeDatabase } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     initializeDatabase();
-    // In Next.js dynamic route handlers params may be async-aware; await to be safe
-    const { id } = (await params) as { id: string };
+    const { id } = await params;
     const db = getDb();
 
     const auction = db.prepare(`SELECT * FROM auctions WHERE id = ?`).get(id);

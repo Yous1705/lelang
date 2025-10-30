@@ -3,11 +3,11 @@ import { getDb } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
 
 export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = context.params;
+    const { id } = await params;
     const db = getDb();
 
     // Ambil daftar bidder dari tabel bidders
@@ -35,10 +35,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = context.params;
+    const { id } = await params;
     const token = request.cookies.get("auth_token")?.value;
 
     if (!token) {

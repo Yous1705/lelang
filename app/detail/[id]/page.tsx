@@ -304,7 +304,7 @@ export default function AuctionDetailPage() {
                 toast({
                   title: "Berhasil",
                   description: "Penawaran berhasil ditempatkan",
-                  variant: "success",
+                  variant: "default",
                 });
 
                 // Close modal and fetch fresh data in background

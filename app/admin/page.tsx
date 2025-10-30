@@ -190,7 +190,7 @@ export default function AdminPage() {
       toast({
         title: "Berhasil",
         description: "Lelang berhasil dihapus",
-        variant: "success",
+        variant: "default",
       });
 
       // Refresh list

@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
 
-export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+interface PageProps {
+  params: { id: string };
+  searchParams?: { [key: string]: string | string[] | undefined };
+}
+
+export async function GET(request: NextRequest, { params }: PageProps) {
   try {
     const db = getDb();
     // Return admin-managed bidders (from bidders table), not actual bids.
@@ -19,7 +21,7 @@ export async function GET(
         ORDER BY b.created_at DESC
         `
       )
-      .all(context.params.id);
+      .all(params.id);
 
     return NextResponse.json(bidders);
   } catch (error) {
@@ -31,10 +33,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: PageProps) {
   try {
     const token = request.cookies.get("auth_token")?.value;
     if (!token) {
@@ -50,9 +49,7 @@ export async function PUT(
     const db = getDb();
 
     // Delete existing bidders
-    db.prepare("DELETE FROM bidders WHERE auction_id = ?").run(
-      context.params.id
-    );
+    db.prepare("DELETE FROM bidders WHERE auction_id = ?").run(params.id);
 
     // Insert new bidders
     const stmt = db.prepare(`
@@ -62,7 +59,7 @@ export async function PUT(
 
     bidders.forEach((bidder: any) => {
       stmt.run(
-        context.params.id,
+        params.id,
         bidder.user_id || null,
         bidder.bidder_name,
         bidder.bid_amount,

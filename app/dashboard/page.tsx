@@ -23,7 +23,7 @@ export default function DashboardPage() {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    console.log("[Dashboard] Auth state:", { loading, user });
+    // Check auth state silently
     if (!loading && !user) {
       console.log("[Dashboard] No user found, redirecting to login");
       router.replace("/login");

@@ -2,8 +2,15 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "your-secret-key-change-in-production"
+  process.env.JWT_SECRET ||
+    (process.env.NODE_ENV === "development"
+      ? "dev-only-secret-key-do-not-use-in-production"
+      : undefined)
 );
+
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error("JWT_SECRET environment variable is required in production");
+}
 
 const JWT_ISSUER = "lelang-internal";
 const JWT_AUDIENCE = "lelang-users";
@@ -33,14 +40,12 @@ export async function createToken(payload: JWTPayload): Promise<string> {
 
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
-    console.log("[Auth] Verifying token:", token.substring(0, 10) + "...");
     const { payload } = await jwtVerify(token, JWT_SECRET, {
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
     });
-    console.log("[Auth] Token decoded successfully:", payload);
 
-    // Validate payload structure
+    // Validate payload structure in a type-safe way
     if (
       typeof payload.id === "number" &&
       typeof payload.email === "string" &&

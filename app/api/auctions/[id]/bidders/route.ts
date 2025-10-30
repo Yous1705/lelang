@@ -25,7 +25,9 @@ export async function GET(
 
     return NextResponse.json(bidders, { status: 200 });
   } catch (error) {
-    console.error("Error fetching bidders:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.debug("[Dev] Error fetching bidders:", error);
+    }
     return NextResponse.json(
       { error: "Failed to fetch bidders" },
       { status: 500 }
@@ -74,7 +76,9 @@ export async function PUT(
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error("Error updating bidders:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.debug("[Dev] Error updating bidders:", error);
+    }
     return NextResponse.json(
       { error: "Failed to update bidders" },
       { status: 500 }

@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
       role: user.role,
     });
 
+    // User authenticated successfully
+
     const response = NextResponse.json(
       {
         success: true,

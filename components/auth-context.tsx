@@ -42,9 +42,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         setUser(data);
+      } else {
+        setUser(null);
       }
     } catch (error) {
-      console.error("Auth check failed:", error);
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -53,9 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function login(
     email: string,
     password: string
-  ): Promise<{ success: boolean; message?: string }> {
+  ): Promise<{ success: boolean; message?: string; user?: User }> {
     try {
-      console.log("Attempting login...");
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -64,7 +65,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       const data = await response.json();
-      console.log("Login response:", data);
 
       if (!response.ok) {
         return { success: false, message: data.message || "Login gagal" };
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const userData = await authCheck.json();
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData };
     } catch (err) {
       console.error("Login error:", err);
       return {

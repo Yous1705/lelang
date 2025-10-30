@@ -6,14 +6,21 @@ const publicPaths = ["/", "/login", "/register"];
 const publicApiPaths = ["/api/auth/login", "/api/auth/register"];
 
 export async function middleware(request: NextRequest) {
-  console.log("[Middleware] Checking path:", request.nextUrl.pathname);
+  const devLog = (...args: any[]) => {
+    if (process.env.NODE_ENV === "development") {
+      // Use console.debug for dev logs so they are less noisy in some hosts
+      console.debug("[Middleware]", ...args);
+    }
+  };
+
+  devLog("Checking path:", request.nextUrl.pathname);
   const authToken = request.cookies.get("auth_token")?.value;
-  console.log("[Middleware] Auth token exists:", !!authToken);
+  devLog("Auth token exists:", !!authToken);
 
   // Allow public paths and API endpoints
   // Allow API routes to be handled by their own auth logic (avoid redirecting to HTML)
   if (request.nextUrl.pathname.startsWith("/api/")) {
-    console.log("[Middleware] API path, letting API handle auth");
+    devLog("API path, letting API handle auth");
     return NextResponse.next();
   }
 
@@ -23,23 +30,23 @@ export async function middleware(request: NextRequest) {
     publicApiPaths.includes(request.nextUrl.pathname) ||
     request.nextUrl.pathname.startsWith("/api/auth/")
   ) {
-    console.log("[Middleware] Public path, allowing access");
+    devLog("Public path, allowing access");
     return NextResponse.next();
   }
 
   // Check auth token
   if (!authToken) {
-    console.log("[Middleware] No auth token, redirecting to login");
+    devLog("No auth token, redirecting to login");
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   try {
-    console.log("[Middleware] Verifying token...");
+    devLog("Verifying token...");
     const user = await verifyToken(authToken);
-    console.log("[Middleware] User from token:", user);
+    devLog("User from token:", user);
 
     if (!user) {
-      console.log("[Middleware] Invalid token, redirecting to login");
+      devLog("Invalid token, redirecting to login");
       return NextResponse.redirect(new URL("/login", request.url));
     }
 

@@ -26,25 +26,23 @@ export function LoginForm() {
     }
 
     try {
-      console.log("Attempting to login...");
       const result = await login(email, password);
-      console.log("Login result:", result);
 
-      if (result && result.success && result.user) {
-        console.log("Login successful with user:", result.user);
+      if (result.success) {
+        // Clear any existing errors
+        setError("");
 
         // Wait a bit for auth state to fully update
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        console.log("Redirecting to dashboard...");
         try {
-          await router.push("/dashboard");
+          router.push("/dashboard");
         } catch (e) {
-          console.error("Navigation error:", e);
+          // Fallback if router push fails
           window.location.href = "/dashboard";
         }
       } else {
-        setError("Login gagal: " + (result?.message || "Terjadi kesalahan"));
+        setError(result.message || "Login gagal: Terjadi kesalahan");
       }
     } catch (err) {
       console.error("Login error:", err);
@@ -97,7 +95,7 @@ export function LoginForm() {
         disabled={loading}
         className={`w-full px-4 py-2 bg-primary text-white rounded-md font-medium 
           ${loading ? "opacity-50 cursor-not-allowed" : "hover:bg-primary/90"} 
-          transition-colors`}
+          transition-colors flex items-center justify-center`}
       >
         {loading ? "Sedang masuk..." : "Masuk"}
       </button>

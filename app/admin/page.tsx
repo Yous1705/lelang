@@ -23,6 +23,7 @@ export default function AdminPage() {
   const [selectedAuctionForBidders, setSelectedAuctionForBidders] =
     useState<Auction | null>(null);
   const [auctionsLoading, setAuctionsLoading] = useState(true);
+  const [deletingIds, setDeletingIds] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState<"auctions" | "bids">("auctions");
 
   useEffect(() => {
@@ -40,7 +41,10 @@ export default function AdminPage() {
 
   async function fetchAuctions() {
     try {
-      const response = await fetch("/api/auctions");
+      const response = await fetch("/api/auctions", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
       const data = await response.json();
       setAuctions(data);
     } catch (error) {
@@ -134,6 +138,11 @@ export default function AdminPage() {
 
   async function handleDeleteAuction(id: number) {
     if (!confirm("Apakah Anda yakin ingin menghapus lelang ini?")) return;
+    // Optimistic UI update: remove item locally first, but keep a copy to rollback on failure
+    const prev = auctions;
+    // mark as deleting to disable button
+    setDeletingIds((d) => [...d, id]);
+    setAuctions((p) => p.filter((a) => a.id !== Number(id)));
 
     try {
       const response = await fetch(`/api/auctions/${id}`, {
@@ -142,6 +151,8 @@ export default function AdminPage() {
       });
 
       if (!response.ok) {
+        // rollback optimistic update
+        setAuctions(prev);
         // Try to parse a helpful error message from the response. If parsing fails, fall back
         // to statusText or raw text so we don't crash on non-JSON responses.
         const contentType = response.headers.get("content-type") || "";
@@ -163,9 +174,10 @@ export default function AdminPage() {
           }
         }
 
-        // Don't throw here to avoid bubbling a raw Error (which creates the stacktrace
-        // you saw). Instead show a friendly toast and handle common statuses.
-        console.error("Failed to delete auction (server):", message);
+        // Log error in development only
+        if (process.env.NODE_ENV === "development") {
+          console.debug("[Dev] Delete auction failed:", message);
+        }
 
         if (response.status === 401) {
           toast({
@@ -186,18 +198,35 @@ export default function AdminPage() {
         return;
       }
 
-      // success
+      // success — update UI immediately without forcing a full page refresh
       toast({
         title: "Berhasil",
         description: "Lelang berhasil dihapus",
         variant: "default",
       });
 
-      // Refresh list
+      // success — ensure deleting flag cleared
+      setDeletingIds((d) => d.filter((x) => x !== id));
+
+      if (process.env.NODE_ENV === "development") {
+        try {
+          const body = await response.json();
+          console.debug("[Dev] Delete response:", response.status, body);
+        } catch (e) {
+          console.debug("[Dev] Delete response status:", response.status);
+        }
+      }
+
+      // Refresh in background to ensure state is in sync with the server
       fetchAuctions();
     } catch (error) {
       // Log and show toast with friendly message
-      console.error("Error deleting auction:", error);
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[Dev] Error deleting auction:", error);
+      }
+      // rollback optimistic UI and clear deleting flag
+      setAuctions(prev);
+      setDeletingIds((d) => d.filter((x) => x !== id));
       toast({
         title: "Kesalahan saat menghapus",
         description: String((error as any)?.message || error),
@@ -376,9 +405,41 @@ export default function AdminPage() {
 
                           <button
                             onClick={() => handleDeleteAuction(auction.id)}
-                            className="px-3 py-1 bg-destructive text-white rounded text-sm font-medium hover:opacity-90"
+                            disabled={deletingIds.includes(auction.id)}
+                            aria-busy={deletingIds.includes(auction.id)}
+                            className={`px-3 py-1 bg-destructive text-white rounded text-sm font-medium ${
+                              deletingIds.includes(auction.id)
+                                ? "opacity-50 cursor-not-allowed"
+                                : "hover:opacity-90"
+                            }`}
                           >
-                            Hapus
+                            {deletingIds.includes(auction.id) ? (
+                              <span className="inline-flex items-center gap-2">
+                                <svg
+                                  className="animate-spin h-4 w-4"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                  ></circle>
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                  ></path>
+                                </svg>
+                                <span>Menghapus...</span>
+                              </span>
+                            ) : (
+                              "Hapus"
+                            )}
                           </button>
                         </div>
                       </td>

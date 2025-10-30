@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getDb, initializeDatabase } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import fs from "fs";
+import path from "path";
 
 export async function GET(
   request: NextRequest,
@@ -125,12 +127,89 @@ export async function DELETE(
     try {
       db.prepare("DELETE FROM bids WHERE auction_id = ?").run(id);
     } catch (e) {
-      console.warn("Warning deleting bids for auction", id, e);
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[Dev] Warning deleting bids for auction", id, e);
+      }
     }
     try {
       db.prepare("DELETE FROM notifications WHERE auction_id = ?").run(id);
     } catch (e) {
-      console.warn("Warning deleting notifications for auction", id, e);
+      if (process.env.NODE_ENV === "development") {
+        console.debug(
+          "[Dev] Warning deleting notifications for auction",
+          id,
+          e
+        );
+      }
+    }
+
+    // Delete auction images from DB and disk (public/uploads)
+    try {
+      const imgs = db
+        .prepare(
+          "SELECT id, image_url FROM auction_images WHERE auction_id = ?"
+        )
+        .all(id) as { id: number; image_url: string }[];
+
+      for (const img of imgs || []) {
+        try {
+          // image_url is stored like '/uploads/filename.ext' or similar
+          const filename = path.basename(img.image_url || "");
+          if (filename) {
+            const filepath = path.join(
+              process.cwd(),
+              "public",
+              "uploads",
+              filename
+            );
+            if (fs.existsSync(filepath)) {
+              try {
+                fs.unlinkSync(filepath);
+                if (process.env.NODE_ENV === "development") {
+                  console.debug("[Dev] Deleted image file:", filepath);
+                }
+              } catch (unlinkErr) {
+                if (process.env.NODE_ENV === "development") {
+                  console.debug(
+                    "[Dev] Failed to delete image file:",
+                    filepath,
+                    unlinkErr
+                  );
+                }
+              }
+            }
+          }
+        } catch (inner) {
+          if (process.env.NODE_ENV === "development") {
+            console.debug(
+              "[Dev] Error processing image for deletion:",
+              img,
+              inner
+            );
+          }
+        }
+      }
+
+      // Remove image rows from DB
+      try {
+        db.prepare("DELETE FROM auction_images WHERE auction_id = ?").run(id);
+      } catch (e) {
+        if (process.env.NODE_ENV === "development") {
+          console.debug(
+            "[Dev] Warning deleting auction_images rows for auction",
+            id,
+            e
+          );
+        }
+      }
+    } catch (e) {
+      if (process.env.NODE_ENV === "development") {
+        console.debug(
+          "[Dev] Warning processing auction images for deletion",
+          id,
+          e
+        );
+      }
     }
 
     const result = db.prepare("DELETE FROM auctions WHERE id = ?").run(id);
@@ -143,9 +222,11 @@ export async function DELETE(
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error deleting auction:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.debug("[Dev] Error deleting auction:", error);
+    }
     return NextResponse.json(
-      { error: "Failed to delete auction", details: String(error) },
+      { error: "Failed to delete auction" },
       { status: 500 }
     );
   }

@@ -17,14 +17,41 @@ export async function middleware(request: NextRequest) {
   const authToken = request.cookies.get("auth_token")?.value;
   devLog("Auth token exists:", !!authToken);
 
-  // Allow public paths and API endpoints
-  // Allow API routes to be handled by their own auth logic (avoid redirecting to HTML)
+  // Check if it's an API route that requires authentication
   if (request.nextUrl.pathname.startsWith("/api/")) {
-    devLog("API path, letting API handle auth");
-    return NextResponse.next();
+    // Allow public API endpoints
+    if (publicApiPaths.includes(request.nextUrl.pathname)) {
+      devLog("Public API path, allowing access");
+      return NextResponse.next();
+    }
+
+    // For protected API endpoints, verify the token
+    if (!authToken) {
+      devLog("Protected API path, no token found");
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const user = await verifyToken(authToken);
+    if (!user) {
+      devLog("Protected API path, invalid token");
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    // Add user info to request headers
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-user-id", user.id.toString());
+    requestHeaders.set("x-user-role", user.role);
+
+    devLog("Protected API path, token verified, adding user headers");
+    return NextResponse.next({
+      headers: requestHeaders,
+    });
   }
 
-  // Allow public paths and specific auth endpoints
+  // For non-API routes
   if (
     publicPaths.includes(request.nextUrl.pathname) ||
     publicApiPaths.includes(request.nextUrl.pathname) ||

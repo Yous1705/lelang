@@ -4,7 +4,7 @@ import { verifyToken } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const db = getDb();
@@ -19,7 +19,7 @@ export async function GET(
         ORDER BY b.created_at DESC
         `
       )
-      .all(params.id);
+      .all(context.params.id);
 
     return NextResponse.json(bidders);
   } catch (error) {
@@ -33,7 +33,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const token = request.cookies.get("auth_token")?.value;
@@ -50,7 +50,9 @@ export async function PUT(
     const db = getDb();
 
     // Delete existing bidders
-    db.prepare("DELETE FROM bidders WHERE auction_id = ?").run(params.id);
+    db.prepare("DELETE FROM bidders WHERE auction_id = ?").run(
+      context.params.id
+    );
 
     // Insert new bidders
     const stmt = db.prepare(`
@@ -60,7 +62,7 @@ export async function PUT(
 
     bidders.forEach((bidder: any) => {
       stmt.run(
-        params.id,
+        context.params.id,
         bidder.user_id || null,
         bidder.bidder_name,
         bidder.bid_amount,

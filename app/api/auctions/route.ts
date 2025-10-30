@@ -20,7 +20,10 @@ export async function GET(request: NextRequest) {
       return { ...a, images };
     });
 
-    return NextResponse.json(auctionsWithImages);
+    // Cache for CDN/edge: 60s, serve stale while revalidating for 2 minutes
+    return NextResponse.json(auctionsWithImages, {
+      headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=120" },
+    });
   } catch (error) {
     console.error("Error fetching auctions:", error);
     return NextResponse.json(

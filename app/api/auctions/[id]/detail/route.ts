@@ -7,7 +7,8 @@ export async function GET(
 ) {
   try {
     initializeDatabase();
-    const { id } = params;
+    // In Next.js dynamic route handlers params may be async-aware; await to be safe
+    const { id } = (await params) as { id: string };
     const db = getDb();
 
     const auction = db.prepare(`SELECT * FROM auctions WHERE id = ?`).get(id);

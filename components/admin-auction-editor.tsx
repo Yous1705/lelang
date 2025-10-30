@@ -374,8 +374,12 @@ export function AdminAuctionEditor({
                       </div>
                       <div className="flex gap-2 mt-2">
                         <Button
+                          type="button"
                           variant="outline"
-                          onClick={() => handleDeleteImage(img.id)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleDeleteImage(img.id);
+                          }}
                           className="flex-1"
                         >
                           Delete

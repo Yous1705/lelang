@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
+import fs from "fs";
+import path from "path";
 
 /**
  * POST — Simpan atau update gambar untuk suatu auction
@@ -35,6 +37,49 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDb();
+
+    // Find existing image filenames for this auction so we can remove deleted files
+    try {
+      const existing = db
+        .prepare("SELECT image_url FROM auction_images WHERE auction_id = ?")
+        .all(auctionId) as { image_url: string }[];
+
+      const existingFiles = (existing || []).map((r) =>
+        path.basename(r.image_url || "")
+      );
+      const newFiles = (filenames || []).map((f: string) => String(f));
+
+      const removed = existingFiles.filter((f) => f && !newFiles.includes(f));
+
+      for (const filename of removed) {
+        try {
+          const filepath = path.join(
+            process.cwd(),
+            "public",
+            "uploads",
+            filename
+          );
+          if (fs.existsSync(filepath)) {
+            fs.unlinkSync(filepath);
+            if (process.env.NODE_ENV === "development") {
+              console.debug("[Dev] Deleted removed image file:", filepath);
+            }
+          }
+        } catch (err) {
+          if (process.env.NODE_ENV === "development") {
+            console.debug(
+              "[Dev] Failed to delete removed image file:",
+              filename,
+              err
+            );
+          }
+        }
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[Dev] Error while checking existing images:", err);
+      }
+    }
 
     // Hapus semua gambar lama untuk auction ini (agar bisa update)
     db.prepare(`DELETE FROM auction_images WHERE auction_id = ?`).run(
@@ -90,6 +135,52 @@ export async function DELETE(request: NextRequest) {
     }
 
     const db = getDb();
+
+    // Fetch image row so we can delete file from disk as well
+    const row = db
+      .prepare("SELECT image_url FROM auction_images WHERE id = ?")
+      .get(imageId) as { image_url?: string } | undefined;
+
+    if (row && row.image_url) {
+      try {
+        const filename = path.basename(row.image_url);
+        const filepath = path.join(
+          process.cwd(),
+          "public",
+          "uploads",
+          filename
+        );
+        if (fs.existsSync(filepath)) {
+          try {
+            fs.unlinkSync(filepath);
+            if (process.env.NODE_ENV === "development") {
+              console.debug(
+                "[Dev] Deleted image file for imageId:",
+                imageId,
+                filepath
+              );
+            }
+          } catch (unlinkErr) {
+            if (process.env.NODE_ENV === "development") {
+              console.debug(
+                "[Dev] Failed to delete image file for imageId:",
+                imageId,
+                unlinkErr
+              );
+            }
+          }
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV === "development") {
+          console.debug(
+            "[Dev] Error removing image file for imageId:",
+            imageId,
+            err
+          );
+        }
+      }
+    }
+
     const result = db
       .prepare("DELETE FROM auction_images WHERE id = ?")
       .run(imageId);

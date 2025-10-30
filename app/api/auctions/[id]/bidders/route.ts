@@ -2,28 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { verifyToken } from "@/lib/auth";
 
-interface PageProps {
-  params: { id: string };
-  searchParams?: { [key: string]: string | string[] | undefined };
-}
-
-export async function GET(request: NextRequest, { params }: PageProps) {
+export async function GET(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
   try {
+    const { id } = context.params;
     const db = getDb();
-    // Return admin-managed bidders (from bidders table), not actual bids.
+
+    // Ambil daftar bidder dari tabel bidders
     const bidders = db
       .prepare(
         `
-        SELECT b.*, u.name as bidder_name, u.phone as bidder_phone
+        SELECT b.*, u.name AS bidder_name, u.phone AS bidder_phone
         FROM bidders b
         LEFT JOIN users u ON b.user_id = u.id
         WHERE b.auction_id = ?
         ORDER BY b.created_at DESC
         `
       )
-      .all(params.id);
+      .all(id);
 
-    return NextResponse.json(bidders);
+    return NextResponse.json(bidders, { status: 200 });
   } catch (error) {
     console.error("Error fetching bidders:", error);
     return NextResponse.json(
@@ -33,9 +33,14 @@ export async function GET(request: NextRequest, { params }: PageProps) {
   }
 }
 
-export async function PUT(request: NextRequest, { params }: PageProps) {
+export async function PUT(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
   try {
+    const { id } = context.params;
     const token = request.cookies.get("auth_token")?.value;
+
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -48,10 +53,10 @@ export async function PUT(request: NextRequest, { params }: PageProps) {
     const { bidders } = await request.json();
     const db = getDb();
 
-    // Delete existing bidders
-    db.prepare("DELETE FROM bidders WHERE auction_id = ?").run(params.id);
+    // Hapus bidder lama
+    db.prepare("DELETE FROM bidders WHERE auction_id = ?").run(id);
 
-    // Insert new bidders
+    // Tambah bidder baru
     const stmt = db.prepare(`
       INSERT INTO bidders (auction_id, user_id, bidder_name, bid_amount, bid_count)
       VALUES (?, ?, ?, ?, ?)
@@ -59,7 +64,7 @@ export async function PUT(request: NextRequest, { params }: PageProps) {
 
     bidders.forEach((bidder: any) => {
       stmt.run(
-        params.id,
+        id,
         bidder.user_id || null,
         bidder.bidder_name,
         bidder.bid_amount,

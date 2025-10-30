@@ -7,7 +7,7 @@ interface ImageCarouselProps {
   images: Array<{ id: number; image_url: string; display_order: number }>;
 }
 
-function ImageCarouselInner({ images }: ImageCarouselProps) {
+export function ImageCarousel({ images }: ImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
@@ -21,7 +21,7 @@ function ImageCarouselInner({ images }: ImageCarouselProps) {
 
   if (!hasImages) {
     return (
-      <div className="w-full aspect-square bg-surface rounded-lg flex items-center justify-center border border-border">
+      <div className="w-full aspect-video bg-surface rounded-lg flex items-center justify-center border border-border">
         <p className="text-foreground-secondary">Tidak ada gambar</p>
       </div>
     );
@@ -29,15 +29,16 @@ function ImageCarouselInner({ images }: ImageCarouselProps) {
 
   const handlePrevious = () =>
     setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+
   const handleNext = () =>
     setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
 
   const handleTouchStart = (e: React.TouchEvent) =>
     setTouchStart(e.targetTouches[0].clientX);
+
   const handleTouchEnd = (e: React.TouchEvent) => {
     setTouchEnd(e.changedTouches[0].clientX);
-    // small debounce-like immediate calculation
-    const diff = touchStart - e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
     if (diff > 50) handleNext();
     if (diff < -50) handlePrevious();
   };
@@ -45,19 +46,20 @@ function ImageCarouselInner({ images }: ImageCarouselProps) {
   return (
     <div className="space-y-4">
       <div
-        className="relative w-full aspect-square bg-surface rounded-lg overflow-hidden border border-border group"
+        className="relative w-full bg-surface rounded-lg overflow-hidden border border-border group"
+        style={{ minHeight: "300px", maxHeight: "500px" }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <img
-          src={currentImage?.image_url || "/placeholder.svg"}
-          alt={`Auction image ${currentIndex + 1}`}
-          className="w-full h-full object-cover"
-          loading="lazy"
-          decoding="async"
-          width={800}
-          height={800}
-        />
+        <div className="absolute inset-0 flex items-center justify-center p-4">
+          <img
+            src={currentImage?.image_url || "/placeholder.svg"}
+            alt={`Auction image ${currentIndex + 1}`}
+            className="max-w-full max-h-full w-auto h-auto object-contain"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
 
         {images.length > 1 && (
           <>
@@ -89,18 +91,20 @@ function ImageCarouselInner({ images }: ImageCarouselProps) {
             <button
               key={image.id}
               onClick={() => setCurrentIndex(index)}
-              className={`flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden transition-all ${
+              className={`flex-shrink-0 w-20 h-20 rounded border-2 overflow-hidden transition-all ${
                 index === currentIndex ? "border-primary" : "border-border"
               }`}
               aria-label={`Select image ${index + 1}`}
             >
-              <img
-                src={image.image_url || "/placeholder.svg"}
-                alt={`Thumbnail ${index + 1}`}
-                className="w-full h-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
+              <div className="w-full h-full flex items-center justify-center bg-surface">
+                <img
+                  src={image.image_url || "/placeholder.svg"}
+                  alt={`Thumbnail ${index + 1}`}
+                  className="max-w-full max-h-full w-auto h-auto object-contain"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
             </button>
           ))}
         </div>
@@ -108,5 +112,3 @@ function ImageCarouselInner({ images }: ImageCarouselProps) {
     </div>
   );
 }
-
-export const ImageCarousel = React.memo(ImageCarouselInner);
